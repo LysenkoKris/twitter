@@ -1,0 +1,701 @@
+{
+  "info": {
+    "name": "ums",
+    "description": "Пользователи (8082, порт 8080 занят другим процессом), сообщения (8084) и подписки (8085).\n\nИмпортируйте коллекцию и окружение postman/ums.local.environment.json. Сценарий запускайте папкой через Collection Runner сверху вниз: он регистрирует producer, subscriber и guest, назначает роли и проходит ленту.\n\nБизнес-ошибки приходят с HTTP 200, код лежит в поле code. Транспортные ошибки сохраняют настоящий HTTP-статус.\n\nСессия передаётся заголовком X-Session-Id.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "usersUrl", "value": "http://localhost:8082"},
+    {"key": "messagesUrl", "value": "http://localhost:8084"},
+    {"key": "subscribersUrl", "value": "http://localhost:8085"},
+    {"key": "adminLogin", "value": "admin"},
+    {"key": "adminPassword", "value": "admin12345"},
+    {"key": "password", "value": "password123"},
+    {"key": "adminUserId", "value": ""},
+    {"key": "adminSessionId", "value": ""},
+    {"key": "producerLogin", "value": ""},
+    {"key": "producerUserId", "value": ""},
+    {"key": "producerSessionId", "value": ""},
+    {"key": "subscriberLogin", "value": ""},
+    {"key": "subscriberUserId", "value": ""},
+    {"key": "subscriberSessionId", "value": ""},
+    {"key": "guestLogin", "value": ""},
+    {"key": "guestUserId", "value": ""},
+    {"key": "guestSessionId", "value": ""},
+    {"key": "messageId", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "Сценарий",
+      "description": "Запускать сверху вниз. Первый запрос задаёт уникальные логины.",
+      "item": [
+        {
+          "name": "01 Login admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now().toString().slice(-8);",
+                  "function save(key, value) {",
+                  "    pm.collectionVariables.set(key, value);",
+                  "    if (pm.environment.name) pm.environment.set(key, value);",
+                  "}",
+                  "save('producerLogin', 'producer_' + suffix);",
+                  "save('subscriberLogin', 'subscriber_' + suffix);",
+                  "save('guestLogin', 'guest_' + suffix);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('admin logged in', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(body.sessionId).to.be.a('number');",
+                  "});",
+                  "pm.collectionVariables.set('adminUserId', String(body.userId));",
+                  "pm.collectionVariables.set('adminSessionId', String(body.sessionId));",
+                  "if (pm.environment.name) {",
+                  "    pm.environment.set('adminUserId', String(body.userId));",
+                  "    pm.environment.set('adminSessionId', String(body.sessionId));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{adminLogin}}\",\n  \"password\": \"{{adminPassword}}\"\n}"},
+            "url": "{{usersUrl}}/api/login",
+            "description": "Вход администратора. Сохраняет adminUserId и adminSessionId."
+          }
+        },
+        {
+          "name": "02 Register producer",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('producer created', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('producerUserId', String(body.id));",
+            "if (pm.environment.name) pm.environment.set('producerUserId', String(body.id));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{producerLogin}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{producerLogin}}@twitter.local\",\n  \"name\": \"Producer\",\n  \"birthDate\": \"1995-04-12\"\n}"},
+            "url": "{{usersUrl}}/api/register",
+            "description": "Регистрация выдаёт роль GUEST. Ответ 201."
+          }
+        },
+        {
+          "name": "03 Register subscriber",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('subscriber created', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('subscriberUserId', String(body.id));",
+            "if (pm.environment.name) pm.environment.set('subscriberUserId', String(body.id));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{subscriberLogin}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{subscriberLogin}}@twitter.local\",\n  \"name\": \"Subscriber\",\n  \"birthDate\": \"1998-09-01\"\n}"},
+            "url": "{{usersUrl}}/api/register"
+          }
+        },
+        {
+          "name": "04 Register guest",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('guest created', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('guestUserId', String(body.id));",
+            "if (pm.environment.name) pm.environment.set('guestUserId', String(body.id));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{guestLogin}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{guestLogin}}@twitter.local\",\n  \"name\": \"Guest\",\n  \"birthDate\": null\n}"},
+            "url": "{{usersUrl}}/api/register"
+          }
+        },
+        {
+          "name": "05 Assign PRODUCER",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('producer role assigned', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().message).to.eql('role assigned');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{adminSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"role\": \"PRODUCER\"\n}"},
+            "url": "{{usersUrl}}/api/users/{{producerUserId}}/roles",
+            "description": "Роль назначает только ADMIN."
+          }
+        },
+        {
+          "name": "06 Assign SUBSCRIBER",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('subscriber role assigned', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().message).to.eql('role assigned');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{adminSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"role\": \"SUBSCRIBER\"\n}"},
+            "url": "{{usersUrl}}/api/users/{{subscriberUserId}}/roles"
+          }
+        },
+        {
+          "name": "07 Login producer",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('producer logged in', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('producerSessionId', String(body.sessionId));",
+            "if (pm.environment.name) pm.environment.set('producerSessionId', String(body.sessionId));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{producerLogin}}\",\n  \"password\": \"{{password}}\"\n}"},
+            "url": "{{usersUrl}}/api/login"
+          }
+        },
+        {
+          "name": "08 Login subscriber",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('subscriber logged in', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('subscriberSessionId', String(body.sessionId));",
+            "if (pm.environment.name) pm.environment.set('subscriberSessionId', String(body.sessionId));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{subscriberLogin}}\",\n  \"password\": \"{{password}}\"\n}"},
+            "url": "{{usersUrl}}/api/login"
+          }
+        },
+        {
+          "name": "09 Login guest",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('guest logged in', function () { pm.response.to.have.status(200); });",
+            "pm.collectionVariables.set('guestSessionId', String(body.sessionId));",
+            "if (pm.environment.name) pm.environment.set('guestSessionId', String(body.sessionId));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{guestLogin}}\",\n  \"password\": \"{{password}}\"\n}"},
+            "url": "{{usersUrl}}/api/login"
+          }
+        },
+        {
+          "name": "10 Resolve producer session",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('session has PRODUCER', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(body.roles).to.include('PRODUCER');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{usersUrl}}/api/sessions/{{producerSessionId}}",
+            "description": "Эту ручку вызывают messages и subscribers, чтобы узнать userId и роли."
+          }
+        },
+        {
+          "name": "11 Subscribe",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('subscribed', function () {",
+            "    pm.response.to.have.status(201);",
+            "    pm.expect(body.authors).to.include(Number(pm.collectionVariables.get('producerUserId') || pm.environment.get('producerUserId')));",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"authorId\": {{producerUserId}}\n}"},
+            "url": "{{subscribersUrl}}/api/v1/subscribers"
+          }
+        },
+        {
+          "name": "12 My subscriptions",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('subscription id present', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().subscriptionId).to.be.a('number');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/my"
+          }
+        },
+        {
+          "name": "13 Followers",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('follower listed', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().length).to.be.above(0);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/{{producerUserId}}/followers?limit=20&offset=0"
+          }
+        },
+        {
+          "name": "14 Sets containing author",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('set exists', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().length).to.be.above(0);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/sets?author_id={{producerUserId}}"
+          }
+        },
+        {
+          "name": "15 Feed before the message",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('empty cached feed', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(body.subscriptionId).to.be.a('number');",
+            "    pm.expect(body.messages).to.eql([]);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{messagesUrl}}/api/v1/messages/feed"
+          }
+        },
+        {
+          "name": "16 Create message",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('message created', function () { pm.response.to.have.status(201); });",
+            "pm.collectionVariables.set('messageId', String(body.id));",
+            "if (pm.environment.name) pm.environment.set('messageId', String(body.id));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{producerSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"text\": \"Концерт начнётся в 20:00\"\n}"},
+            "url": "{{messagesUrl}}/api/v1/messages",
+            "description": "Только PRODUCER. После записи сбрасывается кэш лент, куда входит автор."
+          }
+        },
+        {
+          "name": "17 Messages by author",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('author page', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json()[0].text).to.eql('Концерт начнётся в 20:00');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{messagesUrl}}/api/v1/messages?author_id={{producerUserId}}&limit=20&offset=0"
+          }
+        },
+        {
+          "name": "18 Feed after the message",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('feed refreshed', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().messages[0].text).to.eql('Концерт начнётся в 20:00');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{messagesUrl}}/api/v1/messages/feed"
+          }
+        },
+        {
+          "name": "19 Update message",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('message updated', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().text).to.eql('Билеты закончились');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{producerSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"text\": \"Билеты закончились\"\n}"},
+            "url": "{{messagesUrl}}/api/v1/messages/{{messageId}}"
+          }
+        },
+        {
+          "name": "20 Guest cannot create a message",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('business 403', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().code).to.eql(403);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{guestSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"text\": \"guest text\"\n}"},
+            "url": "{{messagesUrl}}/api/v1/messages",
+            "description": "Бизнес-ошибка: HTTP 200, code 403."
+          }
+        },
+        {
+          "name": "21 Guest cannot subscribe",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('business 403', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().code).to.eql(403);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{guestSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"authorId\": {{producerUserId}}\n}"},
+            "url": "{{subscribersUrl}}/api/v1/subscribers"
+          }
+        },
+        {
+          "name": "22 Unsubscribe",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('unsubscribed', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().message).to.eql('unsubscribed');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/{{producerUserId}}"
+          }
+        },
+        {
+          "name": "23 My subscriptions are empty",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "pm.test('no subscription', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(body.subscriptionId).to.eql(null);",
+            "    pm.expect(body.authors).to.eql([]);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/my"
+          }
+        },
+        {
+          "name": "24 Delete message",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('deleted', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().message).to.eql('deleted');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "X-Session-Id", "value": "{{producerSessionId}}"}],
+            "url": "{{messagesUrl}}/api/v1/messages/{{messageId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "http://localhost:8082. Отдельные ручки, переменные берутся из сценария или окружения.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{producerLogin}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{producerLogin}}@twitter.local\",\n  \"name\": \"Producer\",\n  \"birthDate\": \"1995-04-12\"\n}"},
+            "url": "{{usersUrl}}/api/register",
+            "description": "POST /api/register. 201. Новый пользователь получает GUEST."
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{adminLogin}}\",\n  \"password\": \"{{adminPassword}}\"\n}"},
+            "url": "{{usersUrl}}/api/login",
+            "description": "POST /api/login. Ответ: userId, login, email, name, birthDate, roles, sessionId, expiresAt."
+          }
+        },
+        {
+          "name": "Login invalid credentials",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+            "pm.test('business 401', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().code).to.eql(401);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{adminLogin}}\",\n  \"password\": \"wrong-password\"\n}"},
+            "url": "{{usersUrl}}/api/login",
+            "description": "Бизнес-ошибка: HTTP 200, code 401."
+          }
+        },
+        {
+          "name": "Resolve session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{usersUrl}}/api/sessions/{{adminSessionId}}",
+            "description": "GET /api/sessions/{sessionId}. Ответ: userId и roles."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{usersUrl}}/api/sessions/{{adminSessionId}}",
+            "description": "DELETE /api/sessions/{sessionId}. Закрывает сессию. Повторный resolve вернёт HTTP 200 и code 401."
+          }
+        },
+        {
+          "name": "List roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{usersUrl}}/api/roles",
+            "description": "GET /api/roles. ADMIN, PRODUCER, SUBSCRIBER, GUEST."
+          }
+        },
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{usersUrl}}/api/users",
+            "description": "GET /api/users."
+          }
+        },
+        {
+          "name": "Get user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{usersUrl}}/api/users/{{producerUserId}}",
+            "description": "GET /api/users/{id}."
+          }
+        },
+        {
+          "name": "Replace profile",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"login\": \"{{producerLogin}}\",\n  \"email\": \"{{producerLogin}}@twitter.local\",\n  \"name\": \"Producer Updated\",\n  \"birthDate\": \"1995-04-12\",\n  \"roles\": [\"PRODUCER\"]\n}"},
+            "url": "{{usersUrl}}/api/users/{{producerUserId}}",
+            "description": "PUT /api/users/{id}. roles обязателен и заменяет текущий набор ролей."
+          }
+        },
+        {
+          "name": "Patch profile",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Producer Patched\"\n}"},
+            "url": "{{usersUrl}}/api/users/{{producerUserId}}",
+            "description": "PATCH /api/users/{id}. Нужен email или name."
+          }
+        },
+        {
+          "name": "Assign role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{adminSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"role\": \"PRODUCER\"\n}"},
+            "url": "{{usersUrl}}/api/users/{{producerUserId}}/roles",
+            "description": "POST /api/users/{id}/roles. Заголовок X-Session-Id администратора."
+          }
+        },
+        {
+          "name": "Last session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{usersUrl}}/api/users/{{producerUserId}}/sessions/last",
+            "description": "GET /api/users/{id}/sessions/last."
+          }
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{usersUrl}}/api/users/{{guestUserId}}",
+            "description": "DELETE /api/users/{id}. Удаляет пользователя guest из сценария."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "description": "http://localhost:8084. Заголовок X-Session-Id нужен для создания, изменения, удаления и ленты.",
+      "item": [
+        {
+          "name": "Create message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{producerSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"text\": \"Концерт начнётся в 20:00\"\n}"},
+            "url": "{{messagesUrl}}/api/v1/messages",
+            "description": "POST /api/v1/messages. 201. Только PRODUCER."
+          }
+        },
+        {
+          "name": "Update message",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{producerSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"text\": \"Билеты закончились\"\n}"},
+            "url": "{{messagesUrl}}/api/v1/messages/{{messageId}}",
+            "description": "PUT /api/v1/messages/{id}. Только автор."
+          }
+        },
+        {
+          "name": "Delete message",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "X-Session-Id", "value": "{{producerSessionId}}"}],
+            "url": "{{messagesUrl}}/api/v1/messages/{{messageId}}",
+            "description": "DELETE /api/v1/messages/{id}. Только автор."
+          }
+        },
+        {
+          "name": "Messages by author",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{messagesUrl}}/api/v1/messages?author_id={{producerUserId}}&limit=20&offset=0",
+            "description": "GET /api/v1/messages?author_id=&limit=20&offset=0. limit по умолчанию 20, максимум 100."
+          }
+        },
+        {
+          "name": "Feed",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{messagesUrl}}/api/v1/messages/feed?limit=20&offset=0",
+            "description": "GET /api/v1/messages/feed. Сервис берёт подписку у subscribers и кэширует страницу по умолчанию как feed:{subscriptionId}."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscribers",
+      "description": "http://localhost:8085. Подписывается SUBSCRIBER, автор должен быть PRODUCER.",
+      "item": [
+        {
+          "name": "Subscribe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"authorId\": {{producerUserId}}\n}"},
+            "url": "{{subscribersUrl}}/api/v1/subscribers",
+            "description": "POST /api/v1/subscribers. 201. Ответ: subscriptionId и authors."
+          }
+        },
+        {
+          "name": "Unsubscribe",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/{{producerUserId}}",
+            "description": "DELETE /api/v1/subscribers/{authorId}."
+          }
+        },
+        {
+          "name": "My subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "X-Session-Id", "value": "{{subscriberSessionId}}"}],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/my",
+            "description": "GET /api/v1/subscribers/my. Без подписок subscriptionId равен null, authors пустой."
+          }
+        },
+        {
+          "name": "Followers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/{{producerUserId}}/followers?limit=20&offset=0",
+            "description": "GET /api/v1/subscribers/{authorId}/followers."
+          }
+        },
+        {
+          "name": "Sets containing author",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{subscribersUrl}}/api/v1/subscribers/sets?author_id={{producerUserId}}",
+            "description": "GET /api/v1/subscribers/sets?author_id=. Эти id messages использует, чтобы сбросить кэш ленты."
+          }
+        }
+      ]
+    }
+  ]
+}

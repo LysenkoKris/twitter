@@ -1,0 +1,97 @@
+{
+  "id": "b7e1c4a0-4f2a-4c1e-9a11-ums-local-env",
+  "name": "ums local",
+  "values": [
+    {
+      "key": "usersUrl",
+      "value": "http://localhost:8082",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "messagesUrl",
+      "value": "http://localhost:8084",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "subscribersUrl",
+      "value": "http://localhost:8085",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "adminLogin",
+      "value": "admin",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin12345",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "password",
+      "value": "password123",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "adminUserId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "adminSessionId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "producerLogin",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "producerUserId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "producerSessionId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "subscriberLogin",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "subscriberUserId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "subscriberSessionId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

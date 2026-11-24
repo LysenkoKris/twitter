@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: sms
+  datasource:
+    url: jdbc:postgresql://localhost:5435/subscribers
+    username: ums
+    password: ums
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8085
+  error:
+    whitelabel:
+      enabled: false
+
+app:
+  ums-base-url: http://localhost:8080
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:5173
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
